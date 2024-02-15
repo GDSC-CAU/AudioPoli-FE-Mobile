@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "833282114819",
+    "firebase_url": "https://audiopoli-6b817-default-rtdb.firebaseio.com",
+    "project_id": "audiopoli-6b817",
+    "storage_bucket": "audiopoli-6b817.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:833282114819:android:e98769b0b39a268510d536",
+        "android_client_info": {
+          "package_name": "com.example.audiopoli_dashboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUba2B0ve5xefN1iUTiOwgnCYibjfPR2o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:833282114819:android:b626783cc14073c510d536",
+        "android_client_info": {
+          "package_name": "com.example.audiopoli_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUba2B0ve5xefN1iUTiOwgnCYibjfPR2o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
