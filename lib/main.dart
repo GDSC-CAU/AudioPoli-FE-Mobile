@@ -1,20 +1,36 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'incidentData.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 IncidentData sampledata = IncidentData(date: "2024-02-08", time: "01:08:41", latitude: 37.505486, longitude: 126.958511, sound: "대충 base64", category: 6, detail: 15, isCrime: false, id: 256, departureTime: "00:00:00", caseEndTime: "11:11:11");
 
-void main() async{
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  if (message.notification != null) {
+    print("백그라운드 메시지 처리 ... ${message.notification!.body}");
+  } else {
+    print("백그라운드 메시지 처리 ... 메시지에 알림이 포함되어 있지 않습니다.");
+  }
+}
+
+Future<void> main() async{
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  final fcmToken = await FirebaseMessaging.instance.getToken();
+  print(fcmToken);
   runApp(const MyApp());
-  loadData();
-  updateCaseEndTime(sampledata, "13:12:12");
-}
+  // loadData();
+  // updateCaseEndTime(sampledata, "13:12:12");
 
+}
 
 class MyApp extends StatelessWidget {
 
