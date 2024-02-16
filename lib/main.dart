@@ -6,7 +6,7 @@ import 'firebase_options.dart';
 import 'incidentData.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-IncidentData sampledata = IncidentData(date: "2024-02-08", time: "01:08:41", latitude: 37.505486, longitude: 126.958511, sound: "대충 base64", category: 6, detail: 15, isCrime: false, id: 256, departureTime: "00:00:00", caseEndTime: "11:11:11");
+IncidentData sampledata = IncidentData(date: "2024-02-08", time: "01:08:41", latitude: 37.505486, longitude: 126.958511, sound: "대충 base64", category: 6, detail: 15, isCrime: -1, id: 256, departureTime: "00:00:00", caseEndTime: "11:11:11");
 
 
 @pragma('vm:entry-point')
@@ -24,6 +24,14 @@ Future<void> main() async{
     options: DefaultFirebaseOptions.currentPlatform,
   );
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print('Message data: ${message.notification!.body}');
+
+    if (message.notification != null) {
+      print('Message also contained a notification: ${message.notification}');
+    }
+
+  });
   final fcmToken = await FirebaseMessaging.instance.getToken();
   print(fcmToken);
   runApp(const MyApp());
@@ -52,7 +60,7 @@ class MyApp extends StatelessWidget {
 
 
 void loadData() {
-  final ref = FirebaseDatabase.instance.ref("/");
+  final ref = FirebaseDatabase.instance.ref("/crime");
   var logMap = new Map<String, dynamic>();
 
   ref.onValue.listen((DatabaseEvent event) {
@@ -85,7 +93,7 @@ void loadData() {
 
 void updateDepartureTime(IncidentData data, String time)
 {
-  final ref = FirebaseDatabase.instance.ref("/${data.id.toString()}");
+  final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
 
   ref.update({"departureTime": time})
       .then((_) {
@@ -98,7 +106,7 @@ void updateDepartureTime(IncidentData data, String time)
 
 void updateCaseEndTime(IncidentData data, String time)
 {
-  final ref = FirebaseDatabase.instance.ref("/${data.id.toString()}");
+  final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
 
   ref.update({"caseEndTime": time})
       .then((_) {
