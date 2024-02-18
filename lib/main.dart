@@ -1,4 +1,3 @@
-import 'package:audiopoli_mobile/controllers/app_controller.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:audiopoli_mobile/map_container.dart';
@@ -10,22 +9,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'custom_marker_provider.dart';
+import 'dialog.dart';
 import 'firebase_options.dart';
 import 'incident_data.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'controllers/app_controller.dart';
 import 'package:get/get.dart';
 
 IncidentData sampledata = IncidentData(date: "2024-02-08", time: "01:08:41", latitude: 37.505486, longitude: 126.958511, sound: "대충 base64", category: 6, detail: 15, isCrime: -1, id: 256, departureTime: "00:00:00", caseEndTime: "11:11:11");
 
-
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (message.notification != null) {
-    print("백그라운드 메시지 처리 ... ${message.notification!.body}");
-  } else {
-    print("백그라운드 메시지 처리 ... 메시지에 알림이 포함되어 있지 않습니다.");
-  }
+  await Firebase.initializeApp();
 }
 
 Future<void> main() async{
@@ -35,25 +29,8 @@ Future<void> main() async{
   );
   await MarkerProvider().loadCustomMarker();
   final fcmToken = await FirebaseMessaging.instance.getToken();
-  FirebaseDatabase.instance.ref('/users').update({"token": fcmToken});
-
-
-  // const AndroidNotificationChannel androidNotificationChannel = AndroidNotificationChannel( 'high_importance_channel', 'High Importance Notifications', importance: Importance.max,);
-  //
-  // final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  // await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(androidNotificationChannel);
-
-
-
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler); //백그라운드 메시징 처리
-  // FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-  //   print('포그라운드 메시지 처리 ... ${message.notification!.body}');
-  //
-  //   if (message.notification != null) {
-  //     print('포그라운드 메시지 처리 ... ${message.notification}');
-  //   }
-
-  // });
+  sendTokenToDB(fcmToken);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(MyApp());
   // loadData();
   // updateCaseEndTime(sampledata, "13:12:12");
@@ -64,21 +41,43 @@ class MyApp extends StatefulWidget {
 
   MyApp({super.key});
 
-  final AppController c = Get.put(AppController());
+
   @override
   State<MyApp> createState() => _MyAppState();
+}
+
+void sendTokenToDB(fcmtoken) {
+  final ref = FirebaseDatabase.instance.ref('/users');
+  final Map<String, String> updates = {};
+  updates[fcmtoken] = fcmtoken;
+  ref.update(updates)
+      .then((_) {
+    if (kDebugMode) {
+      print('success!');
+    }
+    // Data saved successfully!
+  })
+      .catchError((error) {
+    if (kDebugMode) {
+      print(error);
+    }
+    // The write failed…
+  });
 }
 
 class _MyAppState extends State<MyApp> {
   var logMap = new Map<String, dynamic>();
 
   final StreamController<Map<String, dynamic>> _logMapController = StreamController.broadcast();
+  // final AppController c = Get.put(AppController());
 
   @override
   void initState() {
     super.initState();
     loadData();
+    // c.initialize();
   }
+
 
 
   void sendDataToDB() {
@@ -137,7 +136,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void loadData() {
-    final ref = FirebaseDatabase.instance.ref("/");
+    final ref = FirebaseDatabase.instance.ref("/crime");
 
     ref.onValue.listen((DatabaseEvent event) {
       DataSnapshot snapshot = event.snapshot;
@@ -173,7 +172,7 @@ class _MyAppState extends State<MyApp> {
 
   void updateDepartureTime(IncidentData data, String time)
   {
-    final ref = FirebaseDatabase.instance.ref("/${data.id.toString()}");
+    final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
 
     ref.update({"departureTime": time})
         .then((_) {
@@ -186,7 +185,7 @@ class _MyAppState extends State<MyApp> {
 
   void updateCaseEndTime(IncidentData data, String time)
   {
-    final ref = FirebaseDatabase.instance.ref("/${data.id.toString()}");
+    final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
 
     ref.update({"caseEndTime": time})
         .then((_) {
@@ -221,7 +220,10 @@ class _MyAppState extends State<MyApp> {
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               final updatedMap = snapshot.data!;
-              return MapContainer(logMap: updatedMap);
+              return Stack(children: [
+                Positioned(left: 10, bottom: 10, child: MessagingWidget()),
+                MapContainer(logMap: updatedMap)
+              ]);
             } else {
               return  Container(
                   child: CircularProgressIndicator(),
