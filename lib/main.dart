@@ -1,3 +1,4 @@
+import 'package:audiopoli_mobile/controllers/app_controller.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:audiopoli_mobile/map_container.dart';
@@ -12,8 +13,10 @@ import 'custom_marker_provider.dart';
 import 'firebase_options.dart';
 import 'incident_data.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'controllers/app_controller.dart';
+import 'package:get/get.dart';
 
-IncidentData sampledata = IncidentData(date: "2024-02-08", time: "01:08:41", latitude: 37.505486, longitude: 126.958511, sound: "대충 base64", category: 6, detail: 15, isCrime: false, id: 256, departureTime: "00:00:00", caseEndTime: "11:11:11");
+IncidentData sampledata = IncidentData(date: "2024-02-08", time: "01:08:41", latitude: 37.505486, longitude: 126.958511, sound: "대충 base64", category: 6, detail: 15, isCrime: -1, id: 256, departureTime: "00:00:00", caseEndTime: "11:11:11");
 
 
 @pragma('vm:entry-point')
@@ -31,10 +34,28 @@ Future<void> main() async{
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await MarkerProvider().loadCustomMarker();
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   final fcmToken = await FirebaseMessaging.instance.getToken();
-  print(fcmToken);
+  FirebaseDatabase.instance.ref('/users').update({"token": fcmToken});
+
+
+  // const AndroidNotificationChannel androidNotificationChannel = AndroidNotificationChannel( 'high_importance_channel', 'High Importance Notifications', importance: Importance.max,);
+  //
+  // final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  // await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(androidNotificationChannel);
+
+
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler); //백그라운드 메시징 처리
+  // FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  //   print('포그라운드 메시지 처리 ... ${message.notification!.body}');
+  //
+  //   if (message.notification != null) {
+  //     print('포그라운드 메시지 처리 ... ${message.notification}');
+  //   }
+
+  // });
   runApp(MyApp());
+  // loadData();
   // updateCaseEndTime(sampledata, "13:12:12");
 
 }
@@ -43,6 +64,7 @@ class MyApp extends StatefulWidget {
 
   MyApp({super.key});
 
+  final AppController c = Get.put(AppController());
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -90,13 +112,13 @@ class _MyAppState extends State<MyApp> {
         sound: "대충 base64",
         category: category,
         detail: detail,
-        isCrime: false,
+        isCrime: -1,
         id: Random().nextInt(10000),
         departureTime: "99:99:99",
         caseEndTime: "99:99:99"
     );
 
-    final ref = FirebaseDatabase.instance.ref('/');
+    final ref = FirebaseDatabase.instance.ref('/crime');
     final Map<String, Map> updates = {};
     updates[sampleData.id.toString()] = sampleData.toMap();
     ref.update(updates)
@@ -212,3 +234,61 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+
+void loadData() {
+  final ref = FirebaseDatabase.instance.ref("/crime");
+  var logMap = new Map<String, dynamic>();
+
+  ref.onValue.listen((DatabaseEvent event) {
+    DataSnapshot snapshot = event.snapshot;
+    if(snapshot.exists)
+    {
+      var data = snapshot.value;
+      if(data is Map) {
+        data.forEach((key, value) {
+          IncidentData incident = IncidentData(
+              date: value['date'],
+              time: value['time'],
+              latitude: value['latitude'],
+              longitude: value['longitude'],
+              sound: value['sound'],
+              category: value['category'],
+              detail: value['detail'],
+              id: value['id'],
+              isCrime: value['isCrime'],
+              departureTime: value['departureTime'],
+              caseEndTime: value['caseEndTime']
+          );
+          logMap[key] = incident;
+          print(logMap);
+        });
+      }
+    }
+  });
+}
+
+void updateDepartureTime(IncidentData data, String time)
+{
+  final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
+
+  ref.update({"departureTime": time})
+      .then((_) {
+    print('success!');
+  })
+      .catchError((error) {
+    print(error);
+  });
+}
+
+void updateCaseEndTime(IncidentData data, String time)
+{
+  final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
+
+  ref.update({"caseEndTime": time})
+      .then((_) {
+    print('success!');
+  })
+      .catchError((error) {
+    print(error);
+  });
+}

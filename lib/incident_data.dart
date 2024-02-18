@@ -7,7 +7,7 @@ Future<IncidentData> fetchIncidentData() async {
     sound: "대충 base64",
     category: 5,
     detail: 3,
-    isCrime: true,
+    isCrime: 1,
     id: 1,
     departureTime: "",
     caseEndTime: "",
@@ -24,7 +24,7 @@ class IncidentData {
   final int category;
   final int detail;
   final int id;
-  late final bool isCrime;
+  late final int isCrime;
   late final String departureTime;
   late final String caseEndTime;
 
