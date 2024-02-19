@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:audiopoli_mobile/button_container.dart';
 import 'package:audiopoli_mobile/map_container.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -15,14 +16,25 @@ import 'incident_data.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 
-IncidentData sampledata = IncidentData(date: "2024-02-08", time: "01:08:41", latitude: 37.505486, longitude: 126.958511, sound: "대충 base64", category: 6, detail: 15, isCrime: -1, id: 256, departureTime: "00:00:00", caseEndTime: "11:11:11");
+IncidentData sampledata = IncidentData(
+    date: "2024-02-08",
+    time: "01:08:41",
+    latitude: 37.505486,
+    longitude: 126.958511,
+    sound: "대충 base64",
+    category: 6,
+    detail: 15,
+    isCrime: -1,
+    id: 256,
+    departureTime: "00:00:00",
+    caseEndTime: "11:11:11");
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
-Future<void> main() async{
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -34,13 +46,10 @@ Future<void> main() async{
   runApp(MyApp());
   // loadData();
   // updateCaseEndTime(sampledata, "13:12:12");
-
 }
 
 class MyApp extends StatefulWidget {
-
   MyApp({super.key});
-
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -50,14 +59,12 @@ void sendTokenToDB(fcmtoken) {
   final ref = FirebaseDatabase.instance.ref('/users');
   final Map<String, String> updates = {};
   updates[fcmtoken] = fcmtoken;
-  ref.update(updates)
-      .then((_) {
+  ref.update(updates).then((_) {
     if (kDebugMode) {
       print('success!');
     }
     // Data saved successfully!
-  })
-      .catchError((error) {
+  }).catchError((error) {
     if (kDebugMode) {
       print(error);
     }
@@ -67,18 +74,28 @@ void sendTokenToDB(fcmtoken) {
 
 class _MyAppState extends State<MyApp> {
   var logMap = new Map<String, dynamic>();
-
-  final StreamController<Map<String, dynamic>> _logMapController = StreamController.broadcast();
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
+  final StreamController<Map<String, dynamic>> _logMapController =
+      StreamController.broadcast();
+  var changedData;
+  var changedKey;
   // final AppController c = Get.put(AppController());
 
   @override
   void initState() {
     super.initState();
     loadData();
+    _dbRef.child('/crime/').onChildChanged.listen((event) {
+      final newChangedData = event.snapshot.value;
+      final newKey = event.snapshot.key;
+      setState(() {
+        changedData = newChangedData;
+        changedKey = newKey;
+      });
+    });
+
     // c.initialize();
   }
-
-
 
   void sendDataToDB() {
     final now = DateTime.now();
@@ -94,12 +111,22 @@ class _MyAppState extends State<MyApp> {
             .toStringAsFixed(6));
     final detail = Random().nextInt(14) + 1;
     Map<int, int> detailToCategory = {
-      1: 1, 2: 1, 3: 1, 4: 1,
-      5: 2, 6: 2, 7: 2, 8: 2, 9: 2,
-      10: 4, 11: 4,
-      12: 3, 13: 3,
+      1: 1,
+      2: 1,
+      3: 1,
+      4: 1,
+      5: 2,
+      6: 2,
+      7: 2,
+      8: 2,
+      9: 2,
+      10: 4,
+      11: 4,
+      12: 3,
+      13: 3,
       14: 5,
-      15: 6, 16: 6,
+      15: 6,
+      16: 6,
     };
     final category = detailToCategory[detail]!;
 
@@ -114,20 +141,17 @@ class _MyAppState extends State<MyApp> {
         isCrime: -1,
         id: Random().nextInt(10000),
         departureTime: "99:99:99",
-        caseEndTime: "99:99:99"
-    );
+        caseEndTime: "99:99:99");
 
     final ref = FirebaseDatabase.instance.ref('/crime');
     final Map<String, Map> updates = {};
     updates[sampleData.id.toString()] = sampleData.toMap();
-    ref.update(updates)
-        .then((_) {
+    ref.update(updates).then((_) {
       if (kDebugMode) {
         print('success!');
       }
       // Data saved successfully!
-    })
-        .catchError((error) {
+    }).catchError((error) {
       if (kDebugMode) {
         print(error);
       }
@@ -140,11 +164,10 @@ class _MyAppState extends State<MyApp> {
 
     ref.onValue.listen((DatabaseEvent event) {
       DataSnapshot snapshot = event.snapshot;
-      if(snapshot.exists)
-      {
+      if (snapshot.exists) {
         var data = snapshot.value;
         Map<String, IncidentData> newLogMap = {};
-        if(data is Map) {
+        if (data is Map) {
           data.forEach((key, value) {
             IncidentData incident = IncidentData(
                 date: value['date'],
@@ -157,8 +180,7 @@ class _MyAppState extends State<MyApp> {
                 id: value['id'],
                 isCrime: value['isCrime'],
                 departureTime: value['departureTime'],
-                caseEndTime: value['caseEndTime']
-            );
+                caseEndTime: value['caseEndTime']);
             newLogMap[key] = incident;
           });
         }
@@ -170,28 +192,28 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void updateDepartureTime(IncidentData data, String time)
-  {
-    final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
-
-    ref.update({"departureTime": time})
-        .then((_) {
+  void updateDepartureTime() {
+    final ref =
+        FirebaseDatabase.instance.ref("/crime/${changedKey.toString()}");
+    final now = DateTime.now();
+    final timeFormatter = DateFormat('HH:mm:ss');
+    final time = timeFormatter.format(now);
+    ref.update({"departureTime": time}).then((_) {
       print('success!');
-    })
-        .catchError((error) {
+    }).catchError((error) {
       print(error);
     });
   }
 
-  void updateCaseEndTime(IncidentData data, String time)
-  {
-    final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
-
-    ref.update({"caseEndTime": time})
-        .then((_) {
+  void updateCaseEndTime() {
+    final ref =
+        FirebaseDatabase.instance.ref("/crime/${changedKey.toString()}");
+    final now = DateTime.now();
+    final timeFormatter = DateFormat('HH:mm:ss');
+    final time = timeFormatter.format(now);
+    ref.update({"caseEndTime": time}).then((_) {
       print('success!');
-    })
-        .catchError((error) {
+    }).catchError((error) {
       print(error);
     });
   }
@@ -201,6 +223,21 @@ class _MyAppState extends State<MyApp> {
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+  }
+
+  bool isToggled = false;
+  void onSelected(BuildContext context, int item) {
+    switch (item) {
+      case 0:
+      // 메뉴 항목 선택 시 토글 상태 변경
+        setState(() {
+          isToggled = !isToggled;
+        });
+        // 토글 상태에 따른 액션 구현
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(isToggled ? 'Police mode ON' : 'Police mode OFF')));
+        break;
+    }
   }
 
   @override
@@ -214,28 +251,89 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(title: Text("AudioPoli APP")),
         body: StreamBuilder<Map<String, dynamic>>(
           stream: _logMapController.stream,
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               final updatedMap = snapshot.data!;
               return Stack(children: [
-                Positioned(left: 10, bottom: 10, child: MessagingWidget()),
-                MapContainer(logMap: updatedMap)
+                Positioned(child: MessagingWidget()),
+                MapContainer(logMap: updatedMap),
+                Visibility(
+                  visible: isToggled ? true : false,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 90,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        color: Colors.white,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                  onPressed: () {
+                                    updateDepartureTime();
+                                  },
+                                  child: Text('Dispatch'),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(15)),
+                                      minimumSize: Size(double.infinity, 70))),
+                            ),
+                            SizedBox(
+                              width: 10,
+                            ),
+                            Expanded(
+                              child: OutlinedButton(
+                                  onPressed: () {
+                                    updateCaseEndTime();
+                                  },
+                                  child: Text('Case Close'),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(15)),
+                                      minimumSize: Size(double.infinity, 70))),
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                    top: 30,
+                    right: 10,
+                    child: PopupMenuButton<int>(
+                      color: Colors.white,
+                      onSelected: (item) => onSelected(context, item),
+                      itemBuilder: (context) => [
+                        PopupMenuItem<int>(
+                          value: 0,
+                          child: Text(isToggled ? 'I\'m citizen' : 'I\'m police'),
+                        ),
+                      ],
+                      icon: Icon(Icons.more_vert), // 'more' 아이콘을 사용
+                    )),
               ]);
             } else {
-              return  Container(
-                  child: CircularProgressIndicator(),
+              return Container(
+                child: CircularProgressIndicator(),
               );
             }
-          },),
-        floatingActionButton: FloatingActionButton(onPressed: sendDataToDB),
+          },
+        ),
       ),
     );
   }
 }
-
 
 void loadData() {
   final ref = FirebaseDatabase.instance.ref("/crime");
@@ -243,10 +341,9 @@ void loadData() {
 
   ref.onValue.listen((DatabaseEvent event) {
     DataSnapshot snapshot = event.snapshot;
-    if(snapshot.exists)
-    {
+    if (snapshot.exists) {
       var data = snapshot.value;
-      if(data is Map) {
+      if (data is Map) {
         data.forEach((key, value) {
           IncidentData incident = IncidentData(
               date: value['date'],
@@ -259,8 +356,7 @@ void loadData() {
               id: value['id'],
               isCrime: value['isCrime'],
               departureTime: value['departureTime'],
-              caseEndTime: value['caseEndTime']
-          );
+              caseEndTime: value['caseEndTime']);
           logMap[key] = incident;
           print(logMap);
         });
@@ -269,28 +365,22 @@ void loadData() {
   });
 }
 
-void updateDepartureTime(IncidentData data, String time)
-{
+void updateDepartureTime(IncidentData data, String time) {
   final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
 
-  ref.update({"departureTime": time})
-      .then((_) {
+  ref.update({"departureTime": time}).then((_) {
     print('success!');
-  })
-      .catchError((error) {
+  }).catchError((error) {
     print(error);
   });
 }
 
-void updateCaseEndTime(IncidentData data, String time)
-{
+void updateCaseEndTime(IncidentData data, String time) {
   final ref = FirebaseDatabase.instance.ref("/crime/${data.id.toString()}");
 
-  ref.update({"caseEndTime": time})
-      .then((_) {
+  ref.update({"caseEndTime": time}).then((_) {
     print('success!');
-  })
-      .catchError((error) {
+  }).catchError((error) {
     print(error);
   });
 }
