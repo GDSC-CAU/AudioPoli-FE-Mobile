@@ -23,7 +23,7 @@
 
 
 
-**[Video: Audio Poli - GDSC Solution Challenge 2024](https://youtu.be/Q8JWalCFGrE?feature=shared)**
+**[Video: Audio Poli - GDSC Solution Challenge 2024](https://youtu.be/4MbzBjkOC8Q?si=rpfeDiqtMU_sJ1OB)**
 
 ## 🤔 The Problem We Faced
 
@@ -225,6 +225,178 @@ $ python3 src/app.py
 
 ### AI [(repo)](https://github.com/GDSC-CAU/AudioPoli-AI)
 
+#### This README part is mainly based on the original model, [Neural Audio Fingerprintings.](https://github.com/mimbres/neural-audio-fp)
+
+#### Install
+
+##### [Conda](https://docs.anaconda.com/anaconda/install/index.html)
+<details>
+  <summary> Create a virtual environment via .yml </summary>
+
+  ###### Requirements
+
+  - `NVIDIA driver >= 450.80.02`, `CUDA >= 11.0` and `cuDNN 8` [(Compatiability)](https://docs.nvidia.com/deeplearning/cudnn/support-matrix/index.html)
+  - `NVIDIA driver >= 440.33`, `CUDA == 10.2` and `cuDNN 7` [(Compatiability)](https://docs.nvidia.com/deeplearning/cudnn/support-matrix/index.html)
+  - [Anaconda3](https://docs.anaconda.com/anaconda/install/index.html) or Miniconda3 with Python >= 3.6
+
+  ###### Create
+  After checking the requirements,
+
+  ```sh
+  git clone https://github.com/mimbres/neural-audio-fp.git
+  cd neural-audio-fp
+  conda env create -f environment.yml
+  conda activate fp
+  ```
+    
+</details>
+
+<details>
+  <summary> Create a virtual environment without .yml </summary>
+
+  ```sh
+  # Python 3.8: installing in the same virtual environment
+  conda create -n YOUR_ENV_NAME 
+  conda install -c anaconda -c pytorch tensorflow=2.4.1=gpu_py38h8a7d6ce_0 cudatoolkit faiss-gpu=1.6.5
+  conda install pyyaml click matplotlib
+  conda install -c conda-forge librosa
+  pip install kapre wavio
+  ```
+  
+</details>
+
+
+<details>
+  <summary> If your installation fails at this point and you don't want to build from source...:thinking: </summary>
+
+  - Try installing `tensorflow` and `faiss-gpu=1.6.5` (not 1.7.1) in separate environments.
+  
+  ```sh
+  #After creating a tensorflow environment for training...
+  conda create -n YOUR_ENV_NAME
+  conda install -c pytorch faiss-gpu=1.6.5
+  conda install pyyaml, click
+  ```
+  
+  Now you can run search & evaluation by
+  
+  ```
+  python eval/eval_faiss.py --help
+  
+  ```
+    
+</details>
+
+#### Dataset
+
+|     |Dataset-mini v1.1 (11.2 GB)  | Dataset-full v1.1 (443 GB) |
+|:---:|:---:|:---:|
+| tar |:eight_spoked_asterisk:[kaggle](https://www.kaggle.com/mimbres/neural-audio-fingerprint) / [gdrive](https://drive.google.com/file/d/19S40YZ4ipJY5sGB-axFaVmS8YitZP3iU/view?usp=sharing) | [dataport(open-access)](http://ieee-dataport.org/open-access/neural-audio-fingerprint-dataset) |
+| raw |[gdrive](https://drive.google.com/drive/folders/1D-ywBJhtve0qlGu0DD1SqjJKSJbfIU9a?usp=sharing)|[gdrive](https://drive.google.com/drive/folders/12vvO8qkQNoGVCl0cdQp0sGKfy8tlxxL9?usp=sharing)|
+
+* The only difference between these two datasets is the size of 'test-dummy-db'.
+  So you can first train and test with `Dataset-mini`. `Dataset-full` is for
+  testing in 100x larger scale.
+* You can download the `Dataset-mini` via `kaggle` [CLI](https://www.kaggle.com/docs/api#getting-started-installation-&-authentication) (recommended).
+  - Sign in [kaggle](https://kaggle.com) -> Account -> API -> Create New Token -> download `kaggle.json`
+
+```
+pip install --user kaggle
+cp kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json
+kaggle datasets download -d mimbres/neural-audio-fingerprint
+
+100%|███████████████████████████████████| 9.84G/9.84G [02:28<00:00, 88.6MB/s]
+```
+
+<details>
+
+  <summary> Dataset installation </summary>
+
+  This dataset includes all music sources, background noises, impulse-reponses
+   (IR) samples that can be used for reproducing the ICASSP results.
+
+  ###### Directory location
+
+  The default directory of the dataset is `../neural-audio-fp-dataset`. You can
+   change the directory location by modifying `config/default.yaml`.
+
+  ```
+  .
+  ├── neural-audio-fp-dataset
+  └── neural-audio-fp
+  ```
+
+  ###### Structure of dataset
+
+  ```
+  neural-audio-fp-dataset/
+  ├── aug
+  │   ├── bg         <=== Audioset, Pub/cafe etc. for background noise mix
+  │   ├── ir         <=== IR data for microphone and room reverb simulatio
+  │   └── speech     <=== subset of common-voice, NOT USED IN THE PAPER RESULT
+  ├── extras
+  │   └── fma_info   <=== Meta data for music sources.
+  └── music
+      ├── test-dummy-db-100k-full  <== 100K songs of full-lengths
+      ├── test-query-db-500-30s    <== 500 songs (30s) and 2K synthesized queries
+      ├── train-10k-30s            <== 10K songs (30s) for training
+      └── val-query-db-500-30s     <== 500 songs (30s) for validation/mini-search
+  ```
+
+  The data format is `16-bit 8000 Hz PCM Mono WAV`. `README.md` and `LICENSE` is
+     included in the dataset for more details.
+
+</details>
+
+
+<details>
+  
+  <summary> Checksum for Dataset-full </summary>
+  
+  Install `checksumdir`.
+  
+  ```
+  pip install checksumdir
+  ```
+  
+  Compare checksum.
+  
+  ```
+  checksumdir -a md5 neural-audio-fp-dataset
+  # aa90a8fbd3e6f938cac220d8aefdb134
+  
+  checksumdir -a sha1 neural-audio-fp-dataset
+  # 5bbeec7f5873d8e5619d6b0de87c90e180363863d
+  ```
+  
+</details>
+
+
+#### Quickstart
+
+There are 3 basic `COMMAND` s for each step.
+
+```python
+# Train
+python run.py train CHECKPOINT_NAME
+
+# Generate fingreprint
+python run.py generate CHECKPOINT_NAME
+
+# Search & Evalutaion (after generating fingerprint)
+python run.py evaluate CHECKPOINT_NAME CHECKPOINT_INDEX
+```
+
+Help for `run.py` client and its commands.
+
+```python
+python run.py --help
+python run.py COMMAND --help
+```
+
+<details>
+  <summary> Outdated Description Information (will still work, but with legacy models) </summary>
+	
 (This repository is valid only for evaluating)
 
 1. Python ≥ 3.7
@@ -281,6 +453,9 @@ serving_outputs = ReduceMeanLayer(axis=0, name='classifier')(serving_outputs)
 serving_model = tf.keras.Model(input_segment, serving_outputs)
 serving_model.save(saved_model_path, include_optimizer=False)
 ```
+    
+</details>
+
 
 ## 🧑🏻‍💻 Contributors
 
